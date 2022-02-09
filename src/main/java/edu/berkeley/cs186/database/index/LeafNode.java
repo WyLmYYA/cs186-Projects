@@ -9,6 +9,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -147,16 +148,14 @@ class LeafNode extends BPlusNode {
     @Override
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.getLeftmostLeaf.
     @Override
     public LeafNode getLeftmostLeaf() {
         // TODO(proj2): implement
-
-        return null;
+        return this;
     }
 
     // See BPlusNode.put.
@@ -377,6 +376,36 @@ class LeafNode extends BPlusNode {
         // use the constructor that reuses an existing page instead of fetching a
         // brand new one.
 
+
+        //Get the page corresponding to the current node
+        Page page = bufferManager.fetchPage(treeContext, pageNum);
+        Buffer buffer = page.getBuffer();
+        int index = 0;
+        byte isLeaf = buffer.get(index);
+        if(isLeaf == 1) {
+            index++;
+            Optional<Long> rightSibling = Optional.of(buffer.getLong(index));
+            index += Long.BYTES;
+            int nodeSize = buffer.getInt(index);
+            index += Integer.BYTES;
+            // start to read keys and rids
+            int keySize = metadata.getKeySchema().getSizeInBytes();
+            int ridSize = RecordId.getSizeInBytes();
+            List<DataBox> keys = new ArrayList<>();
+            List<RecordId> rids = new ArrayList<>();
+            buffer.position(index);
+            byte[] keysAndRidsByteArray = new byte[nodeSize * (keySize + ridSize)];
+            buffer.get(keysAndRidsByteArray);
+            // reset pointer of byte array
+            index = 0;
+            for(int i=0; i < nodeSize; i++) {
+                keys.add(DataBox.fromBytes(edu.berkeley.cs186.database.common.ByteBuffer.wrap(keysAndRidsByteArray, index, keySize), metadata.getKeySchema()));
+                index += keySize;
+                rids.add(RecordId.fromBytes(edu.berkeley.cs186.database.common.ByteBuffer.wrap(keysAndRidsByteArray, index, ridSize)));
+                index += ridSize;
+            }
+            return new LeafNode(metadata, bufferManager, page, keys, rids, rightSibling, treeContext);
+        }
         return null;
     }
 

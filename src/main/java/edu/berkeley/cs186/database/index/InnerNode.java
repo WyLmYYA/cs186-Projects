@@ -9,6 +9,7 @@ import edu.berkeley.cs186.database.memory.BufferManager;
 import edu.berkeley.cs186.database.memory.Page;
 import edu.berkeley.cs186.database.table.RecordId;
 
+import javax.xml.crypto.Data;
 import java.nio.ByteBuffer;
 import java.util.*;
 
@@ -82,6 +83,12 @@ class InnerNode extends BPlusNode {
     public LeafNode get(DataBox key) {
         // TODO(proj2): implement
 
+        // judge is there a child node
+        if(keys.size() > 0) {
+            // find next child by numLessThanEqual(can replace by binary search)
+            int targetChildrenIndex = numLessThanEqual(key, keys);
+            return getChild(targetChildrenIndex).get(key);
+        }
         return null;
     }
 
@@ -90,8 +97,7 @@ class InnerNode extends BPlusNode {
     public LeafNode getLeftmostLeaf() {
         assert(children.size() > 0);
         // TODO(proj2): implement
-
-        return null;
+        return getChild(0).getLeftmostLeaf();
     }
 
     // See BPlusNode.put.

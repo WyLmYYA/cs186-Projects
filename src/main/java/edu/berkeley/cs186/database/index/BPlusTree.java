@@ -146,7 +146,9 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): implement
-
+        if(root != null) {
+            return root.get(key).getKey(key);
+        }
         return Optional.empty();
     }
 
