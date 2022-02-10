@@ -162,8 +162,61 @@ class LeafNode extends BPlusNode {
     @Override
     public Optional<Pair<DataBox, Long>> put(DataBox key, RecordId rid) {
         // TODO(proj2): implement
+        if (keys.isEmpty()){
+            keys.add(key);
+            rids.add(rid);
+            sync();
+            return Optional.empty();
+        }else{
+            int insertIndex = 0;
+            for (; insertIndex < keys.size(); ++insertIndex){
+                if (key.equals(keys.get(insertIndex))){
+                    // find duplicate key
+                    throw new BPlusTreeException("found duplicate key in leaf node");
+                }else if (key.compareTo(keys.get(insertIndex)) < 0){
+                    // insert place at right node
+                    break;
+                }
+            }
+            keys.add(insertIndex, key);
+            rids.add(insertIndex, rid);
 
-        return Optional.empty();
+            if (keys.size() <= 2 * metadata.getOrder()){
+                sync();
+                return Optional.empty();
+            }else {
+                // overflow need to split
+                List<DataBox> nKeys = new ArrayList<>();
+                List<RecordId> nRids = new ArrayList<>();
+
+                // move d+1 pairs to new leaf node right
+                int beginIndex = metadata.getOrder();
+                int pointer = beginIndex;
+                for (; pointer < keys.size(); ++pointer){
+                    nKeys.add(keys.get(pointer));
+                    nRids.add(rids.get(pointer));
+                }
+
+                // delete d+1 pairs from current node
+                for (int i = 0; i < beginIndex + 1; ++i){
+                    keys.remove(beginIndex);
+                    rids.remove(beginIndex);
+                }
+
+                // new right sibling
+                LeafNode nNode = new LeafNode(metadata, bufferManager,nKeys, nRids,rightSibling, treeContext);
+
+                // link current node and right sibling
+                rightSibling = Optional.of(nNode.page.getPageNum());
+
+                // persist current node and new node to disk
+                sync();
+                nNode.sync();
+                return Optional.of(new Pair<>(nKeys.get(0), nNode.page.getPageNum()));
+
+
+            }
+        }
     }
 
     // See BPlusNode.bulkLoad.
@@ -179,8 +232,16 @@ class LeafNode extends BPlusNode {
     @Override
     public void remove(DataBox key) {
         // TODO(proj2): implement
-
-        return;
+        if (!keys.isEmpty()){
+            for (int i = 0; i < keys.size(); ++i){
+                if (keys.get(i).equals(key)){
+                    keys.remove(i);
+                    rids.remove(i);
+                    sync();
+                    return;
+                }
+            }
+        }
     }
 
     // Iterators ///////////////////////////////////////////////////////////////
