@@ -204,7 +204,10 @@ public class BPlusTree {
         LockUtil.ensureSufficientLockHeld(lockContext, LockType.NL);
 
         // TODO(proj2): Return a BPlusTreeIterator.
-
+        if (root != null){
+            LeafNode leafMostLeafNode = root.getLeftmostLeaf();
+            return new BPlusTreeIterator(leafMostLeafNode, -1);
+        }
         return Collections.emptyIterator();
     }
 
@@ -238,6 +241,17 @@ public class BPlusTree {
 
         // TODO(proj2): Return a BPlusTreeIterator.
 
+        if (root != null){
+            LeafNode leafNode = root.get(key);
+            List<DataBox> keys = leafNode.getKeys();
+            int targetIndex = 0;
+            for (; targetIndex < keys.size(); ++targetIndex){
+                if (key.compareTo(keys.get(targetIndex)) < 1){
+                    break;
+                }
+            }
+            return new BPlusTreeIterator(leafNode, targetIndex - 1);
+        }
         return Collections.emptyIterator();
     }
 
@@ -288,8 +302,25 @@ public class BPlusTree {
         // Note: You should NOT update the root variable directly.
         // Use the provided updateRoot() helper method to change
         // the tree's root if the old root splits.
+        if(root != null && root.toSexp().equals("()")) {
+            // firstly, root is a leaf node
+            Optional<Pair<DataBox, Long>> nChild = root.bulkLoad(data, fillFactor);
+            while (nChild.isPresent()) {
+                // overflow, need to generate a new inner node as the root
+                List<DataBox> nkeys = new ArrayList<>();
+                List<Long> nChildren = new ArrayList<>();
+                nkeys.add(nChild.get().getFirst());
+                // becaue this is a pure inner node, it has two children
+                nChildren.add(root.getPage().getPageNum());
+                nChildren.add(nChild.get().getSecond());
+                // now root is a new inner node
+                root = new InnerNode(metadata, bufferManager, nkeys, nChildren, lockContext);
+                nChild = root.bulkLoad(data, fillFactor);
 
-        return;
+            }
+        }else {
+            throw new BPlusTreeException("the tree is not empty");
+        }
     }
 
     /**
@@ -424,11 +455,18 @@ public class BPlusTree {
     private class BPlusTreeIterator implements Iterator<RecordId> {
         // TODO(proj2): Add whatever fields and constructors you want here.
 
+        private LeafNode leafNode;
+        private int index;
         @Override
         public boolean hasNext() {
             // TODO(proj2): implement
 
             return false;
+        }
+
+        BPlusTreeIterator(LeafNode leafNode, int index) {
+            this.leafNode = leafNode;
+            this.index = index;
         }
 
         @Override

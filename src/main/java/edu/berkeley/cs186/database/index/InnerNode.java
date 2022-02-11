@@ -164,7 +164,38 @@ class InnerNode extends BPlusNode {
     public Optional<Pair<DataBox, Long>> bulkLoad(Iterator<Pair<DataBox, RecordId>> data,
             float fillFactor) {
         // TODO(proj2): implement
+        if (children.size() > 1){
+            BPlusNode rightMostChild = getChild(children.size() - 1);
+            Optional<Pair<DataBox, Long>> nChild = rightMostChild.bulkLoad(data, fillFactor);
+            while (nChild.isPresent()){
+                keys.add(nChild.get().getFirst());
+                children.add(nChild.get().getSecond());
+                if (keys.size() > 2 * metadata.getOrder()){
+                    DataBox retKey = keys.get(metadata.getOrder());
 
+                    List<DataBox> nKeys = new ArrayList<>();
+                    List<Long> nChildren = new ArrayList<>();
+                    for (int i = metadata.getOrder() + 1; i < keys.size(); ++i){
+                        nKeys.add(keys.get(i));
+                        nChildren.add(children.get(i));
+                    }
+
+                    nChildren.add(children.get(2*metadata.getOrder() + 1));
+
+                    for (int i = 0; i < metadata.getOrder() + 1; ++i){
+                        keys.remove(metadata.getOrder());
+                        children.remove(metadata.getOrder());
+                    }
+                    InnerNode nInnerNode = new InnerNode(metadata, bufferManager, nKeys, nChildren, treeContext);
+                    sync();
+                    nInnerNode.sync();
+                    return Optional.of(new Pair<>(retKey, nInnerNode.page.getPageNum()));
+                }
+                rightMostChild = getChild(children.size() - 1);
+                nChild = rightMostChild.bulkLoad(data, fillFactor);
+            }
+        }
+        sync();
         return Optional.empty();
     }
 
