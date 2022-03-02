@@ -4,10 +4,12 @@ import edu.berkeley.cs186.database.TransactionContext;
 import edu.berkeley.cs186.database.common.iterator.BacktrackingIterator;
 import edu.berkeley.cs186.database.query.JoinOperator;
 import edu.berkeley.cs186.database.query.QueryOperator;
+import edu.berkeley.cs186.database.table.PageDirectory;
 import edu.berkeley.cs186.database.table.Record;
+import edu.berkeley.cs186.database.table.Table;
 
-import java.util.Iterator;
-import java.util.NoSuchElementException;
+
+import java.util.*;
 
 /**
  * Performs an equijoin between two relations on leftColumnName and
@@ -87,6 +89,22 @@ public class BNLJOperator extends JoinOperator {
          */
         private void fetchNextLeftBlock() {
             // TODO(proj3_part1): implement
+            if (!leftSourceIterator.hasNext()){
+                return;
+            }
+
+            // get max records that memory can store
+            int recordsPerPage = Table.computeNumRecordsPerPage(PageDirectory.EFFECTIVE_PAGE_SIZE, getSchema());
+            int maxRecords = recordsPerPage * ( numBuffers - 2);
+
+            // get records
+            List<Record> blockRecords = new ArrayList<>();
+            for (int i = 0; i < maxRecords && leftSourceIterator.hasNext(); ++i){
+                blockRecords.add(leftSourceIterator.next());
+            }
+
+            this.leftBlockIterator = (BacktrackingIterator<Record>) blockRecords;
+
         }
 
         /**
@@ -101,6 +119,16 @@ public class BNLJOperator extends JoinOperator {
          */
         private void fetchNextRightPage() {
             // TODO(proj3_part1): implement
+            if (!rightSourceIterator.hasNext()){
+                return;
+            }
+            // get num of per page
+            int recordsPerPage = Table.computeNumRecordsPerPage(PageDirectory.EFFECTIVE_PAGE_SIZE, getSchema());
+            List<Record> nextRightPage = new ArrayList<>();
+            for (int i = 0; i < recordsPerPage && rightSourceIterator.hasNext(); ++i){
+                nextRightPage.add(rightSourceIterator.next());
+            }
+            this.rightPageIterator = (BacktrackingIterator<Record>) nextRightPage;
         }
 
         /**
@@ -113,6 +141,11 @@ public class BNLJOperator extends JoinOperator {
          */
         private Record fetchNextRecord() {
             // TODO(proj3_part1): implement
+            if (!this.leftBlockIterator.hasNext() || this.leftBlockIterator == null){
+                return null;
+            }
+            Record nextRec = null;
+
             return null;
         }
 
